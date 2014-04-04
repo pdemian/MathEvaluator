@@ -38,17 +38,17 @@ Copy Calc.cs into your project
 
 ## Usage
 Calculate a string expression as simply as this
-    Calc.Calculate( "some string expression" );
+    `Calc.Calculate( "some string expression" );`
     
 For example
-    //calculate using a string
-    Console.WriteLine(Calc.Calculate("16 / 2 * (8 - 3 * (4 - 2)) + 1"));
+    `//calculate using a string`
+    `Console.WriteLine(Calc.Calculate("16 / 2 * (8 - 3 * (4 - 2)) + 1"));`
     
-    //calculate using default arithmetic
-    Console.WriteLine(16 / 2 * (8 - 3 * (4 - 2)) + 1);
+    `//calculate using default arithmetic`
+    `Console.WriteLine(16 / 2 * (8 - 3 * (4 - 2)) + 1);`
 Will print out
-    17
-    17
+    `17`
+    `17`
     
     
 ## Examples
