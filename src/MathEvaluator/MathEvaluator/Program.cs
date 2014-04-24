@@ -10,10 +10,9 @@ namespace MathEvaluator
     {
         static void Main(string[] args)
         {
-            Queue<Object> o = Calc.Lexxer("3 * log(16 + 5) - 4 / e + - 3.0");
-
-            foreach (Object s in o)
-                Console.WriteLine(s.GetType() + " " + s);
+            Queue<Object> o;
+            //o = Calc.Parser("3 * log(16 + 5) - 4 * 6/e");
+            //o = Calc.ToRPN(o);
 
             Console.Read();
         }

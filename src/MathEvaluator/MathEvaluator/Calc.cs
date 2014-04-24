@@ -108,12 +108,10 @@ class Calc
         return (double)stack.Pop();
     }
 
-    //Parser converts the tokens into an RPN queue (using the Shunting Yard Algorithm)
-    private static Queue<Object> Parser(Queue<Object> str)
+    //ToRPN converts the tokens into an RPN queue (using the Shunting Yard Algorithm)
+    private static Queue<Object> ToRPN(Queue<Object> str)
     {
-        if (str == null || str.Count == 0) throw new Exception("Empty String");
-
-        Stack<char> Stack = new Stack<char>();
+        Stack<Object> Stack = new Stack<Object>();
         Queue<Object> Temp_queue = new Queue<Object>();
 
         for (int TokenCounter = 0; TokenCounter < str.Count; TokenCounter++)
@@ -121,88 +119,74 @@ class Calc
             //if the token is a number, add it to the output queue.
             #region Numbers
             if (str.ElementAt(TokenCounter) is double) Temp_queue.Enqueue(str.ElementAt(TokenCounter));
-            else if (str.ElementAt(TokenCounter) is int) Temp_queue.Enqueue(str.ElementAt(TokenCounter));
+            else if (str.ElementAt(TokenCounter) is long) Temp_queue.Enqueue(str.ElementAt(TokenCounter));
             #endregion
 
             //if the token is a left parenthesis, push it onto the stack
             #region Left Paren
-            else if (str.ElementAt(TokenCounter) is char) if ((char)str.ElementAt(TokenCounter) == Symbols.LEFT_PAREN) Stack.Push(Symbols.LEFT_PAREN);
+            else if (str.ElementAt(TokenCounter).Equals(Symbols.LEFT_PAREN)) Stack.Push(Symbols.LEFT_PAREN);
+            #endregion
+            #region Right Paren
+            else if (str.ElementAt(TokenCounter).Equals(Symbols.RIGHT_PAREN))
+            {
+                bool IsParenMatched = false;
+
+                //Until the token at the top of the stack is a left parenthesis, pop operators off the stack onto the output queue.
+                while (Stack.Count > 0 && !IsParenMatched)
+                {
+                    //Pop the left parenthesis from the stack, but not onto the output queue.
+                    if (Stack.Peek().Equals(Symbols.LEFT_PAREN))
+                    {
+                        Stack.Pop();
+                        IsParenMatched = true;
+                    }
+                    else Temp_queue.Enqueue(Stack.Pop());
+                }
+
+                //If the stack runs out without finding a left parenthesis, then there are mismatched parentheses.
+                if (!IsParenMatched) throw new Exception("Parentheses mismatch");
+            }
             #endregion
 
+            #region characters
+            else
+            {
+                Object current = str.ElementAt(TokenCounter);
 
-                else if (str.ElementAt(TokenCounter) is char)
+                /* HIGHEST PRECEDENCE */
+                if(current.Equals(Symbols.MOD) || current.Equals(Symbols.MUL) || current.Equals(Symbols.DIV))
                 {
-                    char CurrentChar = (char)str.ElementAt(TokenCounter);
-
-                    //if the token is a right parenthesis, then:
-                    #region Right Paren
-                    if (CurrentChar == Symbols.RIGHT_PAREN)
+                    while (Stack.Count > 0 &&
+                        !Stack.Peek().Equals(Symbols.LEFT_PAREN) &&
+                        !(Stack.Peek().Equals(Symbols.ADD) || Stack.Peek().Equals(Symbols.SUB)))
                     {
-                        bool IsParenMatched = false;
-
-                        //Until the token at the top of the stack is a left parenthesis, pop operators off the stack onto the output queue.
-                        while (Stack.Count > 0 && !IsParenMatched)
-                        {
-                            //Pop the left parenthesis from the stack, but not onto the output queue.
-                            if (Stack.Peek() == Symbols.LEFT_PAREN)
-                            {
-                                Stack.Pop();
-                                IsParenMatched = true;
-                            }
-                            else Temp_queue.Enqueue(Stack.Pop());
-                        }
-
-                        //If the stack runs out without finding a left parenthesis, then there are mismatched parentheses.
-                        if (!IsParenMatched) throw new Exception("mismatched parenthesis");
+                        Temp_queue.Enqueue(Stack.Pop());
                     }
-                    #endregion
-
-                    //if the token is an operator, o1, then:
-                    #region Operators
-                    else if (CurrentChar == Symbols.EXP ||
-                             CurrentChar == Symbols.MUL ||
-                             CurrentChar == Symbols.DIV ||
-                             CurrentChar == Symbols.MOD ||
-                             CurrentChar == Symbols.ADD ||
-                             CurrentChar == Symbols.SUB)
-                    {
-                        //while there is an operator token, o2, at the top of the stack, and
-                        //either o1 is left-associative and its precedence is less than or equal to that of o2,
-
-                        /* HIGHEST PRECEDENCE */
-                        while (Stack.Count > 0 &&
-                              Stack.Peek() != Symbols.LEFT_PAREN &&
-                              (CurrentChar == Symbols.MOD || CurrentChar == Symbols.MUL || CurrentChar == Symbols.DIV) &&
-                              (Stack.Peek() != Symbols.ADD && Stack.Peek() != Symbols.SUB))
-                        {
-                            Temp_queue.Enqueue(Stack.Pop());
-                        }
-
-                        /* LOWEST PRECEDENCE */
-                        while (Stack.Count > 0 &&
-                            Stack.Peek() != Symbols.LEFT_PAREN &&
-                            (CurrentChar == Symbols.ADD || CurrentChar == Symbols.SUB))
-                        {
-                            Temp_queue.Enqueue(Stack.Pop());
-                        }
-
-                        // or o1 is right-associative and its precedence is less than that of o2,
-
-                        /* no right-associative operators other than EXP */
-                        Stack.Push(CurrentChar);
-                    }
-                    #endregion
-
+                    
                 }
-                else throw new Exception("Unknown token: '" + str.ElementAt(TokenCounter) + "' as '" + str.ElementAt(TokenCounter).GetType() + "'");
+
+                /* LOWEST PRECEDENCE */
+                if (current.Equals(Symbols.ADD) || current.Equals(Symbols.SUB))
+                {
+                    while (Stack.Count > 0 &&
+                        !Stack.Peek().Equals(Symbols.LEFT_PAREN))
+                    {
+                        Temp_queue.Enqueue(Stack.Pop());
+                    }
+                }
+
+                //push the current operator onto the stack
+                Stack.Push(current);
+            }
+            #endregion
         }
         //When there are no more tokens to read:
         //While there are still operator tokens in the stack:
-        //        If the operator token on the top of the stack is a parenthesis, then there are mismatched parentheses.
+        //        If the operator token on the top of the stack is a parentheses, then there are mismatched parentheses.
         //        Pop the operator onto the output queue.
         while (Stack.Count > 0)
         {
-            if (Stack.Peek() == Symbols.LEFT_PAREN) throw new Exception("mismatched parenthesis");
+            if (Stack.Peek().Equals(Symbols.LEFT_PAREN)) throw new Exception("Parentheses mismatch");
             Temp_queue.Enqueue(Stack.Pop());
         }
 
@@ -210,10 +194,10 @@ class Calc
         return Temp_queue;
     }
 
-    //Lexxer tokenizes the input string for parsing
-    private static Queue<Object> Lexxer(string str)
+    //Parser tokenizes the input string for evaluating
+    private static Queue<Object> Parser(string str)
     {
-        if (str == null || str.Length == 0) throw new Exception("empty string");
+        if (str == null || str.Length == 0) throw new Exception("Empty string");
 
         Queue<Object> Temp_queue = new Queue<object>();
         StringBuilder Temp_string = new StringBuilder(str);
@@ -271,9 +255,13 @@ class Calc
             #region words
             else if (Char.IsLetter(Temp_string[TokenCounter]))
             {
+                //get the entire word
                 StringBuilder sb = new StringBuilder();
                 while (TokenCounter < Temp_string.Length && Char.IsLetter(Temp_string[TokenCounter]))
                     sb.Append(Temp_string[TokenCounter++]);
+
+                //temp bug fix. eats up next character if uncommented
+                TokenCounter--;
 
                 string word = sb.ToString().ToLower();
                 switch (word)
@@ -366,7 +354,7 @@ class Calc
     {
         try
         {
-            return Evaluator(Parser(Lexxer(str)));
+            return Evaluator(ToRPN(Parser(str)));
         }
         catch (Exception ex)
         {
