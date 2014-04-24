@@ -211,7 +211,7 @@ class Calc
     }
 
     //Lexxer tokenizes the input string for parsing
-    public static Queue<Object> Lexxer(string str)
+    private static Queue<Object> Lexxer(string str)
     {
         if (str == null || str.Length == 0) throw new Exception("empty string");
 
@@ -241,7 +241,7 @@ class Calc
                             ParseDigits += '.';
                             HasDecimal = true;
                         }
-                        else if (Temp_string[TokenCounter] == '.' && HasDecimal) throw new Exception("unmatched decimal point at position '" + TokenCounter + "'");
+                        else if (Temp_string[TokenCounter] == '.' && HasDecimal) throw new Exception("Unmatched decimal point at position '" + TokenCounter + "'");
                         else ParseDigits += Temp_string[TokenCounter];
 
                         if (TokenCounter + 1 >= Temp_string.Length) break;
@@ -259,7 +259,6 @@ class Calc
                     Temp_queue = new Queue<object>(Temp_queue.Reverse());
                     Temp_queue.Dequeue();
                     Temp_queue = new Queue<object>(Temp_queue.Reverse());
-
                 }
                 SymbolsInARow = 0;
 
@@ -310,6 +309,8 @@ class Calc
                     default:
                         throw new Exception("Unknown function or constant: \"" + word + "\"");
                 }
+
+                SymbolsInARow = 0;
             }
             #endregion
             //parse symbols
