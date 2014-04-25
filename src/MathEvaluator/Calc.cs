@@ -34,6 +34,7 @@ class Calc
         public const string CEIL  = "ceil";
         public const string ROUND = "round";
         public const string ABS   = "abs";
+        public const string MOD   = "mod";
     }
 
     private static class Constants
@@ -48,7 +49,7 @@ class Calc
     }
 
     //Evaluator evaluates the tokens into a doubleing-point number
-    private static double Evaluator(Queue<Object> str)
+    private static double Evaluator(Queue<object> str)
     {
         Stack<double> Stack = new Stack<double>();
 
@@ -66,7 +67,7 @@ class Calc
             #region operators
             else
             {
-                Object current = str.ElementAt(TokenCounter);
+                object current = str.ElementAt(TokenCounter);
                 double temp;
 
                 if (current is string)
@@ -76,11 +77,19 @@ class Calc
                         if (Stack.Count < 2) throw new Exception("Maldeformed expression");
                         Stack.Push(Math.Pow(Stack.Pop(), 1/Stack.Pop()));
                     }
+                    else if (current.Equals(Functions.MOD))
+                    {
+                        if (Stack.Count < 2) throw new Exception("Maldeformed expression");
+                        temp = Stack.Pop();
+                        if(temp == 0.0) throw new DivideByZeroException("Division by zero in expression");
+                        Stack.Push(Stack.Pop() % temp);
+                    }
                     else
                     {
                         if (Stack.Count < 1) throw new Exception("Maldeformed expression");
                         temp = Stack.Pop();
 
+                        //perform the function
                         if (current.Equals(Functions.LOG)) Stack.Push(Math.Log10(temp));
                         else if (current.Equals(Functions.LN)) Stack.Push(Math.Log(temp));
                         else if (current.Equals(Functions.SQRT)) Stack.Push(Math.Sqrt(temp));
@@ -115,16 +124,16 @@ class Calc
             #endregion
         }
 
-        if (Stack.Count > 1) throw new Exception("too many values entered");
+        if (Stack.Count > 1) throw new Exception("Maldeformed expression");
 
         return (double)Stack.Pop();
     }
 
     //ToRPN converts the tokens into an RPN queue (using the Shunting Yard Algorithm)
-    private static Queue<Object> ToRPN(Queue<Object> str)
+    private static Queue<object> ToRPN(Queue<object> str)
     {
-        Stack<Object> Stack = new Stack<Object>();
-        Queue<Object> Queue = new Queue<Object>();
+        Stack<object> Stack = new Stack<object>();
+        Queue<object> Queue = new Queue<object>();
 
         for (int TokenCounter = 0; TokenCounter < str.Count; TokenCounter++)
         {
@@ -133,20 +142,31 @@ class Calc
             if (str.ElementAt(TokenCounter) is double) Queue.Enqueue(str.ElementAt(TokenCounter));
             #endregion
 
-            //if the token is a left parenthesis, push it onto the stack
-                //TODO: if there is something like "15(...)", make it "15 * (...)"
+            //if the token is a left parentheses, push it onto the stack
             #region Left Paren
-            else if (str.ElementAt(TokenCounter).Equals(Symbols.LEFT_PAREN)) Stack.Push(Symbols.LEFT_PAREN);
+            else if (str.ElementAt(TokenCounter).Equals(Symbols.LEFT_PAREN))
+            {
+                //if it's something like "15(5 + 2)" the 15 should be multiplied to make the expression "15 * (5 + 2)"
+                //fix this later, but the only way I can think of doing this is going back, appending a '*', and continuing
+                if (TokenCounter >= 1 && (str.ElementAt(TokenCounter - 1) is double || str.ElementAt(TokenCounter - 1).Equals(Symbols.RIGHT_PAREN)))
+                {
+                    List<object> list = new List<object>(str);
+                    list.Insert(TokenCounter, Symbols.MUL);
+                    str = new Queue<object>(list);
+                    TokenCounter--;
+                }
+                else Stack.Push(Symbols.LEFT_PAREN);
+            }
             #endregion
             #region Right Paren
             else if (str.ElementAt(TokenCounter).Equals(Symbols.RIGHT_PAREN))
             {
                 bool IsParenMatched = false;
 
-                //Until the token at the top of the stack is a left parenthesis, pop operators off the stack onto the output queue.
+                //Until the token at the top of the stack is a left parentheses, pop operators off the stack onto the output queue.
                 while (Stack.Count > 0 && !IsParenMatched)
                 {
-                    //Pop the left parenthesis from the stack, but not onto the output queue.
+                    //Pop the left parentheses from the stack, but not onto the output queue.
                     if (Stack.Peek().Equals(Symbols.LEFT_PAREN))
                     {
                         Stack.Pop();
@@ -155,7 +175,7 @@ class Calc
                     else Queue.Enqueue(Stack.Pop());
                 }
 
-                //If the stack runs out without finding a left parenthesis, then there are mismatched parentheses.
+                //If the stack runs out without finding a left parentheses, then there are mismatched parentheses.
                 if (!IsParenMatched) throw new Exception("Parentheses mismatch");
             }
             #endregion
@@ -163,10 +183,12 @@ class Calc
             #region characters
             else
             {
-                Object current = str.ElementAt(TokenCounter);
+                object current = str.ElementAt(TokenCounter);
+
+                //Use the shunting yard algorithm to turn this into an RPN queue
 
                 /* HIGHEST PRECEDENCE */
-                if(current.Equals(Symbols.MOD) || current.Equals(Symbols.MUL) || current.Equals(Symbols.DIV))
+                if (current.Equals(Symbols.MOD) || current.Equals(Symbols.MUL) || current.Equals(Symbols.DIV))
                 {
                     while (Stack.Count > 0 &&
                         !Stack.Peek().Equals(Symbols.LEFT_PAREN) &&
@@ -174,7 +196,7 @@ class Calc
                     {
                         Queue.Enqueue(Stack.Pop());
                     }
-                    
+
                 }
 
                 /* LOWEST PRECEDENCE */
@@ -207,11 +229,11 @@ class Calc
     }
 
     //Parser tokenizes the input string for evaluating
-    private static Queue<Object> Parser(string str)
+    private static Queue<object> Parser(string str)
     {
         if (str == null || str.Length == 0) throw new ArgumentException("Empty string");
 
-        Queue<Object> Queue = new Queue<object>();
+        Queue<object> Queue = new Queue<object>();
         StringBuilder Stringbuilder = new StringBuilder(new string(str.Where(x => !Char.IsWhiteSpace(x)).ToArray()));
        
 
@@ -240,31 +262,6 @@ class Calc
 
                         if (TokenCounter + 1 >= Stringbuilder.Length) break;
                     }
-                }
-
-                //two tokens in a row and the second token being '-' means it a negative number
-                //eg: "1 * - 1" means tokens  {"1", "*", "-1" } not {"1","*","-", "1"}
-
-                bool negate = false;
-                //if we're at the beginning
-                if (TokenCounter == 2)
-                {
-                    if (Queue.ElementAt(Queue.Count - 1).Equals(Symbols.SUB)) negate = true;
-                }
-                //otherwise
-                else if(TokenCounter > 2)
-                {
-                    if (Queue.ElementAt(Queue.Count - 1).Equals(Symbols.SUB) && !(Queue.ElementAt(Queue.Count - 2) is double)) negate = true;
-                }
-
-                if (negate)
-                {
-                    ParseDigits = Symbols.SUB + ParseDigits;
-
-                    //because you can only remove the start of a queue, reverse it, dequeue, and reverse that
-                    Queue = new Queue<object>(Queue.Reverse());
-                    Queue.Dequeue();
-                    Queue = new Queue<object>(Queue.Reverse());
                 }
                 Queue.Enqueue(double.Parse(ParseDigits));
             }
@@ -299,6 +296,7 @@ class Calc
                     case Functions.CEIL:
                     case Functions.ROUND:
                     case Functions.ABS:
+                    case Functions.MOD:
                         Queue.Enqueue(word);
                         break;
                     
@@ -411,6 +409,11 @@ class Calc
         return Queue;
     }
 
+    /// <summary>
+    /// Calculates a mathematical expression
+    /// </summary>
+    /// <param name="str">A valid mathematical expression</param>
+    /// <returns>The result of the calculation</returns>
     public static double Calculate(string str)
     {
         try
