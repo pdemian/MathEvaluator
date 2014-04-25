@@ -50,62 +50,74 @@ class Calc
     //Evaluator evaluates the tokens into a doubleing-point number
     private static double Evaluator(Queue<Object> str)
     {
-        if (str == null || str.Count == 0) throw new Exception("empty queue");
-
-        Stack<Object> stack = new Stack<Object>();
+        Stack<double> Stack = new Stack<double>();
 
         for (int TokenCounter = 0; TokenCounter < str.Count; TokenCounter++)
         {
             //add numbers to the stack
             #region numbers
-            if (str.ElementAt(TokenCounter) is int || str.ElementAt(TokenCounter) is double)
+            if (str.ElementAt(TokenCounter) is double)
             {
-                stack.Push(str.ElementAt(TokenCounter));
+                Stack.Push((double)str.ElementAt(TokenCounter));
             }
             #endregion
 
             //calculates the stack if there is an operator in the queue
             #region operators
-            if (str.ElementAt(TokenCounter) is char) 
+            else
             {
-                char CurrentChar = (char)str.ElementAt(TokenCounter);
+                Object current = str.ElementAt(TokenCounter);
+                double temp;
 
-                //if we find an operator
-                if (CurrentChar == Symbols.MUL ||
-                    CurrentChar == Symbols.DIV ||
-                    CurrentChar == Symbols.MOD ||
-                    CurrentChar == Symbols.ADD ||
-                    CurrentChar == Symbols.SUB ||
-                    CurrentChar == Symbols.EXP)
+                if (current is string)
                 {
-                    if (stack.Count < 2) throw new Exception("not enough tokens to evaluate the expression");
+                    if(current.Equals(Functions.NSQRT))
+                    {
+                        if (Stack.Count < 2) throw new Exception("Maldeformed expression");
+                        Stack.Push(Math.Pow(Stack.Pop(), 1/Stack.Pop()));
+                    }
+                    else
+                    {
+                        if (Stack.Count < 1) throw new Exception("Maldeformed expression");
+                        temp = Stack.Pop();
 
-
-                    //do an operation dependant of the data type and 
-                    double temp;
-                    if (stack.Peek() is double) temp = (double)stack.Pop();
-                    else                       temp = (int)stack.Pop();
-                   
-                    
-                    if(CurrentChar == Symbols.ADD)       temp += (stack.Peek() is int ? (int)stack.Pop() : (double)stack.Pop());
-                    else if (CurrentChar == Symbols.SUB) temp = (stack.Peek() is int ? (int) stack.Pop() : (double)stack.Pop()) - temp;
-                    else if (CurrentChar == Symbols.MUL) temp *= (stack.Peek() is int ? (int)stack.Pop() : (double)stack.Pop());
-                    else if (CurrentChar == Symbols.DIV) { if(temp == 0.0) throw new Exception("division by zero"); else temp = (stack.Peek() is int ? (int)stack.Pop() : (double)stack.Pop()) / temp; }
-                    else if (CurrentChar == Symbols.MOD) { if(temp == 0.0) throw new Exception("division by zero"); else temp = (stack.Peek() is int ? (int)stack.Pop() : (double)stack.Pop()) % temp; }
-                    else                                 temp = (double)Math.Pow((stack.Peek() is int ? (int)stack.Pop() : (double)stack.Pop()), temp);
-
-                    //push the value onto the stack for the final value
-                    stack.Push(temp);
+                        if (current.Equals(Functions.LOG)) Stack.Push(Math.Log10(temp));
+                        else if (current.Equals(Functions.LN)) Stack.Push(Math.Log(temp));
+                        else if (current.Equals(Functions.SQRT)) Stack.Push(Math.Sqrt(temp));
+                        else if (current.Equals(Functions.SIN)) Stack.Push(Math.Sin(temp));
+                        else if (current.Equals(Functions.COS)) Stack.Push(Math.Cos(temp));
+                        else if (current.Equals(Functions.TAN)) Stack.Push(Math.Tan(temp));
+                        else if (current.Equals(Functions.ASIN)) Stack.Push(Math.Asin(temp));
+                        else if (current.Equals(Functions.ACOS)) Stack.Push(Math.Acos(temp));
+                        else if (current.Equals(Functions.ATAN)) Stack.Push(Math.Atan(temp));
+                        else if (current.Equals(Functions.FLOOR)) Stack.Push(Math.Floor(temp));
+                        else if (current.Equals(Functions.CEIL)) Stack.Push(Math.Ceiling(temp));
+                        else if (current.Equals(Functions.ROUND)) Stack.Push(Math.Round(temp));
+                        else Stack.Push(Math.Abs(temp));
+                    }
                 }
-                else if(CurrentChar == ' ') continue;
-                else throw new Exception("syntax error");
+                else
+                {
+                    //all symbol operators require 2 items on the stack
+                    if(Stack.Count < 2) throw new Exception("Maldeformed expression");
+
+                    temp = (double)Stack.Pop();
+                    if (current.Equals(Symbols.ADD)) temp += Stack.Pop();
+                    else if (current.Equals(Symbols.SUB)) temp -= Stack.Pop();
+                    else if (current.Equals(Symbols.MUL)) temp *= Stack.Pop();
+                    else if(current.Equals(Symbols.DIV)) { if(temp == 0.0) throw new Exception("Division by zero"); else temp = Stack.Pop() / temp; }
+                    else if(current.Equals(Symbols.MOD)) { if(temp == 0.0) throw new Exception("Division by zero"); else temp = Stack.Pop() % temp; }
+                    else temp = Math.Pow(Stack.Pop(), temp);
+
+                    Stack.Push(temp);
+                }
             }
             #endregion
         }
 
-        if (stack.Count > 1) throw new Exception("too many values entered");
+        if (Stack.Count > 1) throw new Exception("too many values entered");
 
-        return (double)stack.Pop();
+        return (double)Stack.Pop();
     }
 
     //ToRPN converts the tokens into an RPN queue (using the Shunting Yard Algorithm)
@@ -119,7 +131,6 @@ class Calc
             //if the token is a number, add it to the output queue.
             #region Numbers
             if (str.ElementAt(TokenCounter) is double) Temp_queue.Enqueue(str.ElementAt(TokenCounter));
-            else if (str.ElementAt(TokenCounter) is long) Temp_queue.Enqueue(str.ElementAt(TokenCounter));
             #endregion
 
             //if the token is a left parenthesis, push it onto the stack
@@ -246,9 +257,7 @@ class Calc
                 }
                 SymbolsInARow = 0;
 
-                if (HasDecimal) Temp_queue.Enqueue(double.Parse(ParseDigits));
-                else Temp_queue.Enqueue(long.Parse(ParseDigits));
-
+                Temp_queue.Enqueue(double.Parse(ParseDigits));
             }
             #endregion
             //parse words
@@ -280,6 +289,7 @@ class Calc
                     case Functions.FLOOR:
                     case Functions.CEIL:
                     case Functions.ROUND:
+                    case Functions.ABS:
                         Temp_queue.Enqueue(word);
                         break;
 
