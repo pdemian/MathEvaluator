@@ -103,7 +103,7 @@ class Calc
 
                     temp = (double)Stack.Pop();
                     if (current.Equals(Symbols.ADD)) temp += Stack.Pop();
-                    else if (current.Equals(Symbols.SUB)) temp -= Stack.Pop();
+                    else if (current.Equals(Symbols.SUB)) temp = Stack.Pop() - temp;
                     else if (current.Equals(Symbols.MUL)) temp *= Stack.Pop();
                     else if(current.Equals(Symbols.DIV)) { if(temp == 0.0) throw new Exception("Division by zero"); else temp = Stack.Pop() / temp; }
                     else if(current.Equals(Symbols.MOD)) { if(temp == 0.0) throw new Exception("Division by zero"); else temp = Stack.Pop() % temp; }
@@ -211,10 +211,8 @@ class Calc
         if (str == null || str.Length == 0) throw new Exception("Empty string");
 
         Queue<Object> Temp_queue = new Queue<object>();
-        StringBuilder Temp_string = new StringBuilder(str);
-        
-        //used for negative numbers. If there were two operators in a row (eg, "1 * - 1"), the second minus is a negation sign
-        int SymbolsInARow = 0;
+        StringBuilder Temp_string = new StringBuilder(new string(str.Where(x => !Char.IsWhiteSpace(x)).ToArray()));
+       
 
         for (int TokenCounter = 0; TokenCounter < Temp_string.Length; TokenCounter++)
         {
@@ -243,10 +241,22 @@ class Calc
                     }
                 }
 
-
                 //two tokens in a row and the second token being '-' means it a negative number
                 //eg: "1 * - 1" means tokens  {"1", "*", "-1" } not {"1","*","-", "1"}
-                if (SymbolsInARow >= 2 && Temp_queue.ElementAt(Temp_queue.Count - 1).Equals(Symbols.SUB))
+
+                bool negate = false;
+                //if we're at the beginning
+                if (TokenCounter == 2)
+                {
+                    if (Temp_queue.ElementAt(Temp_queue.Count - 1).Equals(Symbols.SUB)) negate = true;
+                }
+                //otherwise
+                else if(TokenCounter > 2)
+                {
+                    if (Temp_queue.ElementAt(Temp_queue.Count - 1).Equals(Symbols.SUB) && !(Temp_queue.ElementAt(Temp_queue.Count - 2) is double)) negate = true;
+                }
+
+                if (negate)
                 {
                     ParseDigits = Symbols.SUB + ParseDigits;
 
@@ -255,8 +265,6 @@ class Calc
                     Temp_queue.Dequeue();
                     Temp_queue = new Queue<object>(Temp_queue.Reverse());
                 }
-                SymbolsInARow = 0;
-
                 Temp_queue.Enqueue(double.Parse(ParseDigits));
             }
             #endregion
@@ -291,24 +299,40 @@ class Calc
                     case Functions.ROUND:
                     case Functions.ABS:
                         Temp_queue.Enqueue(word);
-                        break;
-
-                    //constants
-                    case Constants.PI:
-                        Temp_queue.Enqueue(Constants.PI_VALUE);
-                        break;
-                    case Constants.E:
-                        Temp_queue.Enqueue(Constants.E_VALUE);
-                        break;
-                    case Constants.PHI:
-                        Temp_queue.Enqueue(Constants.PHI_VALUE);
-                        break;
-
-                    default:
-                        throw new Exception("Unknown function or constant: \"" + word + "\"");
+                        continue;
                 }
 
-                SymbolsInARow = 0;
+
+                if (word.Equals(Constants.PI) || word.Equals(Constants.E) || word.Equals(Constants.PHI))
+                {
+                    double constant = word.Equals(Constants.PI) ? Constants.PI_VALUE :
+                        word.Equals(Constants.E) ? Constants.E_VALUE :
+                        Constants.PHI_VALUE;
+
+                    //two tokens in a row and the second token being '-' means it a negative number
+                    bool negate = false;
+                    //if we're at the beginning
+                    if (Temp_queue.Count < 2)
+                    {
+                        if (Temp_queue.ElementAt(Temp_queue.Count - 1).Equals(Symbols.SUB)) negate = true;
+                    }
+                    //otherwise
+                    else if (TokenCounter > 2)
+                    {
+                        if (Temp_queue.ElementAt(Temp_queue.Count - 1).Equals(Symbols.SUB) && !(Temp_queue.ElementAt(Temp_queue.Count - 2) is double)) negate = true;
+                    }
+
+                    if (negate)
+                    {
+                        //because you can only remove the start of a queue, reverse it, dequeue, and reverse that
+                        Temp_queue = new Queue<object>(Temp_queue.Reverse());
+                        Temp_queue.Dequeue();
+                        Temp_queue = new Queue<object>(Temp_queue.Reverse());
+                        constant = -constant;
+                    }
+                    Temp_queue.Enqueue(constant);
+                }
+                else throw new Exception("Unknown function or constant: \"" + word + "\"");
             }
             #endregion
             //parse symbols
@@ -325,32 +349,23 @@ class Calc
                         continue;
                     case Symbols.MUL:
                         Temp_queue.Enqueue(Symbols.MUL);
-                        SymbolsInARow++;
                         continue;
                     case Symbols.EXP:
                         Temp_queue.Enqueue(Symbols.EXP);
-                        SymbolsInARow++;
                         continue;
                     case Symbols.DIV:
                         Temp_queue.Enqueue(Symbols.DIV);
-                        SymbolsInARow++;
                         continue;
                     case Symbols.MOD:
                         Temp_queue.Enqueue(Symbols.MOD);
-                        SymbolsInARow++;
                         continue;
                     case Symbols.ADD:
                         Temp_queue.Enqueue(Symbols.ADD);
-                        SymbolsInARow++;
                         continue;
                     case Symbols.SUB:
                         Temp_queue.Enqueue(Symbols.SUB);
-                        SymbolsInARow++;
                         continue;
                 }
-                if(Char.IsWhiteSpace(Temp_string[TokenCounter]))
-                    continue;
-
                 throw new Exception("Unknown symbol: '" + Temp_string[TokenCounter] + "'");
             }
             #endregion
@@ -366,9 +381,9 @@ class Calc
         {
             return Evaluator(ToRPN(Parser(str)));
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            throw new Exception("Error: " + ex.Message);
+            throw;
         }
     }
 }
