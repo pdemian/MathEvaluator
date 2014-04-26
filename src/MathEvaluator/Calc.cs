@@ -231,11 +231,11 @@ class Calc
     //Parser tokenizes the input string for evaluating
     private static Queue<object> Parser(string str)
     {
-        if (str == null || str.Length == 0) throw new ArgumentException("Empty string");
+        if (string.IsNullOrWhiteSpace(str)) throw new ArgumentException("Empty string");
 
         Queue<object> Queue = new Queue<object>();
-        StringBuilder Stringbuilder = new StringBuilder(new string(str.Where(x => !Char.IsWhiteSpace(x)).ToArray()));
-       
+        //remove multiple whitespace (only a single whitespace character allowed)
+        StringBuilder Stringbuilder = new StringBuilder(System.Text.RegularExpressions.Regex.Replace(str, @"\s\s+", " ")); //new StringBuilder(new string(str.Where(x => !Char.IsWhiteSpace(x)).ToArray()));
 
         for (int TokenCounter = 0; TokenCounter < Stringbuilder.Length; TokenCounter++)
         {
@@ -300,15 +300,11 @@ class Calc
                         Queue.Enqueue(word);
                         break;
                     
-                        //constants
+                    //constants
                     case Constants.PI:
-                        Queue.Enqueue(Constants.PI_VALUE);
-                        break;
                     case Constants.E:
-                        Queue.Enqueue(Constants.E_VALUE);
-                        break;
                     case Constants.PHI:
-                        Queue.Enqueue(Constants.PHI_VALUE);
+                        Queue.Enqueue(word);
                         break;
                     default:
                         throw new Exception("Unknown function or constant: \"" + word + "\"");
@@ -346,6 +342,7 @@ class Calc
                         Queue.Enqueue(Symbols.SUB);
                         continue;
                 }
+                if (Char.IsWhiteSpace(Stringbuilder[TokenCounter])) continue;
                 throw new Exception("Unknown symbol: '" + Stringbuilder[TokenCounter] + "'");
             }
             #endregion
@@ -406,7 +403,32 @@ class Calc
             }
         }
 
-        return Queue;
+        //handle implicit multiplication 
+        //eg, 2sin(2pi)
+        List<object> List = new List<object>(Queue);
+        for (int i = 1; i < List.Count; i++)
+        {
+            if (List.ElementAt(i) is string && 
+                !(List.ElementAt(i).Equals(Functions.MOD) || List.ElementAt(i).Equals(Functions.NSQRT)) && 
+                List.ElementAt(i - 1) is double)
+            {
+                List.Insert(i, Symbols.MUL);
+            }
+        }
+
+        //convert constants to their actual values
+        List = List.Select(x =>
+        {
+            if (x is string)
+            {
+                if (x.Equals(Constants.PI)) return Constants.PI_VALUE;
+                else if (x.Equals(Constants.E)) return Constants.E_VALUE;
+                else if (x.Equals(Constants.PHI)) return Constants.PHI_VALUE;
+            }
+            return x;
+        }).ToList();
+
+        return new Queue<object>(List);
     }
 
     /// <summary>
