@@ -360,7 +360,7 @@ class Calc
                 if (Queue.ElementAt(i - 1).Equals(Symbols.SUB)) negate = true;
             }
             //otherwise
-            else if (i > 2)
+            else
             {
                 if (Queue.ElementAt(i - 1).Equals(Symbols.SUB) && !(Queue.ElementAt(i - 2) is double)) negate = true;
             }
