@@ -71,6 +71,7 @@ Will print out
     Console.WriteLine(Calc.Calculate("log 27 / log 3"));
     
 Prints out
+
     -5
     150
     18
